@@ -21,6 +21,9 @@ on:
     - cron: "*/5 * * * *"   # every 5 minutes (UTC); GHA may add ~1-2 min jitter
   workflow_dispatch:         # allows manual trigger from Actions tab
 
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
 jobs:
   book:
     name: Check & Book
@@ -37,7 +40,7 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: "3.11"
-          cache: pip           # caches pip packages between runs
+          cache: pip
 
       # ----------------------------------------------------------------
       - name: Install Python dependencies
@@ -45,8 +48,6 @@ jobs:
 
       # ----------------------------------------------------------------
       # Cache the Playwright Chromium binary (~150 MB).
-      # Key includes the playwright version (via requirements.txt hash)
-      # so the cache is invalidated whenever playwright is upgraded.
       - name: Cache Playwright browser
         id: cache-pw
         uses: actions/cache@v4
@@ -56,7 +57,7 @@ jobs:
 
       - name: Install Playwright Chromium (if not cached)
         if: steps.cache-pw.outputs.cache-hit != 'true'
-        run: playwright install chromium --with-deps
+        run: playwright install chromium && playwright install-deps chromium
 
       # ----------------------------------------------------------------
       - name: Run booking check
@@ -66,11 +67,11 @@ jobs:
         run: python main.py --once
 
       # ----------------------------------------------------------------
-      # Upload debug screenshots if any were saved (only on failure)
-      - name: Upload debug screenshots
+      - name: Upload debug screenshots on failure
         if: failure()
         uses: actions/upload-artifact@v4
         with:
           name: debug-screenshots-${{ github.run_id }}
           path: "*.png"
           retention-days: 3
+          if-no-files-found: ignore
