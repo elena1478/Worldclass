@@ -117,11 +117,21 @@ class WorldclassClient:
     # ------------------------------------------------------------------
 
     async def _start(self):
-        self._pw = await async_playwright().start()
-        self._browser = await self._pw.chromium.launch(
-            headless=Config.HEADLESS,
-            args=["--no-sandbox", "--disable-setuid-sandbox", "--disable-blink-features=AutomationControlled"],
+        import pathlib
+        # Use pre-installed headless shell if the default playwright browser isn't downloadable
+        _headless_shell = pathlib.Path(
+            "/opt/pw-browsers/chromium_headless_shell-1194/chrome-linux/headless_shell"
         )
+        launch_kwargs = dict(
+            headless=Config.HEADLESS,
+            args=["--no-sandbox", "--disable-setuid-sandbox",
+                  "--disable-blink-features=AutomationControlled"],
+        )
+        if _headless_shell.exists():
+            launch_kwargs["executable_path"] = str(_headless_shell)
+
+        self._pw = await async_playwright().start()
+        self._browser = await self._pw.chromium.launch(**launch_kwargs)
         self._ctx = await self._browser.new_context(
             user_agent=(
                 "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
@@ -130,6 +140,7 @@ class WorldclassClient:
             ),
             viewport={"width": 1280, "height": 800},
             locale="ro-RO",
+            ignore_https_errors=True,
         )
         # Hide webdriver flag
         await self._ctx.add_init_script(
