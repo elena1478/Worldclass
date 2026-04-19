@@ -1,0 +1,41 @@
+# Environment / credentials
+.env
+*.env
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.egg-info/
+dist/
+build/
+.eggs/
+*.egg
+
+# Playwright
+playwright-report/
+test-results/
+
+# Logs
+*.log
+logs/
+
+# Debug screenshots
+*.png
+
+# Virtual environment
+venv/
+.venv/
+env/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
