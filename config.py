@@ -9,13 +9,6 @@ class Config:
     WC_EMAIL: str = os.getenv("WC_EMAIL", "")
     WC_PASSWORD: str = os.getenv("WC_PASSWORD", "")
 
-    # Email notification settings
-    SMTP_HOST: str = os.getenv("SMTP_HOST", "smtp.gmail.com")
-    SMTP_PORT: int = int(os.getenv("SMTP_PORT", "587"))
-    SMTP_USER: str = os.getenv("SMTP_USER", "")
-    SMTP_PASSWORD: str = os.getenv("SMTP_PASSWORD", "")
-    NOTIFY_EMAIL: str = os.getenv("NOTIFY_EMAIL", "")
-
     # Booking preferences
     TARGET_CLUB: str = "Lujerului"
     TARGET_CLASSES: list = ["pilates", "fit pilates", "stretching", "stretch"]
@@ -39,16 +32,9 @@ class Config:
             missing.append("WC_EMAIL")
         if not cls.WC_PASSWORD:
             missing.append("WC_PASSWORD")
-        if not cls.SMTP_USER:
-            missing.append("SMTP_USER")
-        if not cls.SMTP_PASSWORD:
-            missing.append("SMTP_PASSWORD")
-        if not cls.NOTIFY_EMAIL:
-            missing.append("NOTIFY_EMAIL")
 
         if missing:
             from loguru import logger
             logger.error(f"Configuratie lipsa in .env: {', '.join(missing)}")
-            logger.error("Copiaza .env.example in .env si completeaza credentialele tale.")
             return False
         return True

@@ -16,7 +16,6 @@ from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.interval import IntervalTrigger
 
 from config import Config
-from email_notifier import send_booking_confirmation
 from worldclass_client import WorldclassClient
 
 
@@ -67,16 +66,6 @@ async def run_booking_check():
             result = await client.book_class(cls)
             if result:
                 booked_count += 1
-                send_booking_confirmation({
-                    "name": result.name,
-                    "date": result.date,
-                    "time": result.time,
-                    "duration": result.duration,
-                    "instructor": result.instructor,
-                    "club": result.club,
-                    "booked_at": result.booked_at,
-                    "confirmation": result.confirmation,
-                })
 
         logger.info(
             f"Sumar: {booked_count} rezervari noi | "
