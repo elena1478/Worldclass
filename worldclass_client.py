@@ -621,7 +621,8 @@ class WorldclassClient:
             return info
 
         logger.warning(f"Rezervare esuata pentru '{info.name}'.")
-        await self._screenshot(f"booking_failed_{re.sub(r'\\W','_',info.name)}.png")
+        safe_name = re.sub(r'\W', '_', info.name)
+        await self._screenshot(f"booking_failed_{safe_name}.png")
         return None
 
     async def _click_book(self, info: ClassInfo) -> Optional[str]:
