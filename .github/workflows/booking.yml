@@ -1,0 +1,76 @@
+name: Worldclass Booking Automation
+
+# -----------------------------------------------------------------------
+# Runs every 5 minutes.
+#
+# Logic (in main.py):
+#   - Fetch the LIVE schedule from worldclass.ro (always fresh —
+#     handles trainer changes, public holidays, programme modifications)
+#   - For each pilates/stretching class at Lujerului whose booking window
+#     (class_time - 26h) falls within the next 8 minutes:
+#       sleep() to the EXACT second the window opens → book immediately
+#   - Max booking lag: < 1 minute in practice
+#
+# Secrets required (Settings → Secrets → Actions):
+#   WC_EMAIL     — contul tau worldclass.ro
+#   WC_PASSWORD  — parola worldclass.ro
+# -----------------------------------------------------------------------
+
+on:
+  schedule:
+    - cron: "*/5 * * * *"   # every 5 minutes (UTC); GHA may add ~1-2 min jitter
+  workflow_dispatch:         # allows manual trigger from Actions tab
+
+jobs:
+  book:
+    name: Check & Book
+    runs-on: ubuntu-latest
+    timeout-minutes: 12      # 8 min max sleep + 2 min login/booking + buffer
+
+    steps:
+      # ----------------------------------------------------------------
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # ----------------------------------------------------------------
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip           # caches pip packages between runs
+
+      # ----------------------------------------------------------------
+      - name: Install Python dependencies
+        run: pip install -r requirements.txt
+
+      # ----------------------------------------------------------------
+      # Cache the Playwright Chromium binary (~150 MB).
+      # Key includes the playwright version (via requirements.txt hash)
+      # so the cache is invalidated whenever playwright is upgraded.
+      - name: Cache Playwright browser
+        id: cache-pw
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-chromium-${{ runner.os }}-${{ hashFiles('requirements.txt') }}
+
+      - name: Install Playwright Chromium (if not cached)
+        if: steps.cache-pw.outputs.cache-hit != 'true'
+        run: playwright install chromium --with-deps
+
+      # ----------------------------------------------------------------
+      - name: Run booking check
+        env:
+          WC_EMAIL:    ${{ secrets.WC_EMAIL }}
+          WC_PASSWORD: ${{ secrets.WC_PASSWORD }}
+        run: python main.py --once
+
+      # ----------------------------------------------------------------
+      # Upload debug screenshots if any were saved (only on failure)
+      - name: Upload debug screenshots
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: debug-screenshots-${{ github.run_id }}
+          path: "*.png"
+          retention-days: 3
