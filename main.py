@@ -27,10 +27,6 @@ from worldclass_client import BUCHAREST_TZ, WorldclassClient
 # We look ahead 8 min to always catch the window that opens in this interval.
 LOOKAHEAD_SECONDS = 8 * 60
 
-# If the booking window opened up to 5 min ago and we haven't booked yet
-# (e.g. this is our first run after startup), still book.
-GRACE_SECONDS = 5 * 60
-
 # ---------------------------------------------------------------------------
 # Logging
 # ---------------------------------------------------------------------------
@@ -99,9 +95,15 @@ async def run_smart_booking():
             if cls.class_datetime is not None:
                 booking_opens = cls.class_datetime - timedelta(hours=Config.BOOKING_WINDOW_HOURS)
                 wait_sec = (booking_opens - now).total_seconds()
+                class_sec = (cls.class_datetime - now).total_seconds()
 
+                # Class already happened — skip
+                if class_sec <= 0:
+                    logger.debug(f"  [clasa trecuta]  {label}")
+                    continue
+
+                # Booking window opens too far in the future — skip, next run handles it
                 if wait_sec > LOOKAHEAD_SECONDS:
-                    # Too far in the future — a later run will handle it
                     upcoming_count += 1
                     logger.debug(
                         f"  [viitor]  {label} — fereastra se deschide "
@@ -110,14 +112,8 @@ async def run_smart_booking():
                     )
                     continue
 
-                if wait_sec < -GRACE_SECONDS:
-                    # Window opened a long time ago; if it was bookable we
-                    # would have caught it in a previous run. Skip.
-                    logger.debug(f"  [fereastra veche]  {label}")
-                    continue
-
+                # Window opens within LOOKAHEAD — sleep to the exact second
                 if wait_sec > 0:
-                    # Window opens within LOOKAHEAD — sleep to the exact second
                     logger.info(
                         f"  [astept {wait_sec:.0f}s]  {label} — "
                         f"rezervare exacta la {booking_opens.strftime('%H:%M:%S')}"
@@ -128,7 +124,8 @@ async def run_smart_booking():
                         logger.info(f"  [dry-run] As astepta {wait_sec:.0f}s si as rezerva.")
                         continue
 
-                # wait_sec <= 0: window is open now (just opened or within grace)
+                # wait_sec <= 0: fereastra e deschisa (de secunde sau de ore) —
+                # daca clasa n-a trecut inca, incercam rezervarea
                 if Config.DRY_RUN:
                     logger.info(f"  [dry-run] As rezerva: {label}")
                     continue
