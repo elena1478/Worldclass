@@ -67,11 +67,13 @@ jobs:
         run: python main.py --once
 
       # ----------------------------------------------------------------
-      - name: Upload debug screenshots on failure
-        if: failure()
+      - name: Upload debug artifacts
+        if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: debug-screenshots-${{ github.run_id }}
-          path: "*.png"
+          name: debug-${{ github.run_id }}
+          path: |
+            debug_*.png
+            debug_*.html
           retention-days: 3
           if-no-files-found: ignore

@@ -251,10 +251,11 @@ class WorldclassClient:
 
         if await self._is_logged_in():
             logger.success("Autentificare reusita.")
+            await self._dump_page("after_login")
             return True
 
         logger.error("Autentificare esuata — verifica email/parola.")
-        await self._screenshot("login_failed.png")
+        await self._dump_page("login_failed")
         return False
 
     async def _try_fill(self, selectors: list, value: str, label: str) -> bool:
@@ -271,15 +272,20 @@ class WorldclassClient:
         return False
 
     async def _is_logged_in(self) -> bool:
+        # Give JS time to render
+        await asyncio.sleep(1.5)
         try:
-            for sel in ['a[href*="logout"]', 'a:has-text("Deconectare")',
-                        ".logout", 'a[href*="customer-logout"]']:
+            # Strong positive signal: logout link or account nav
+            for sel in ['a[href*="logout"]', 'a[href*="customer-logout"]',
+                        'a:has-text("Deconectare")', '.woocommerce-MyAccount-navigation',
+                        '.woocommerce-account .woocommerce']:
                 if await self.page.locator(sel).count() > 0:
                     return True
-            url = self.page.url
-            if "my-account" in url:
-                if await self.page.locator('input[name="username"],input[name="password"]').count() == 0:
-                    return True
+            # If login form is present → definitely NOT logged in
+            for sel in ['input[name="username"]', 'input[name="password"]',
+                        '.woocommerce-form-login']:
+                if await self.page.locator(sel).count() > 0:
+                    return False
         except Exception:
             pass
         return False
@@ -299,6 +305,9 @@ class WorldclassClient:
             await self.page.goto(self.SCHEDULE_URL, wait_until="networkidle", timeout=40_000)
         except PWTimeout:
             logger.warning("Timeout la incarcare program, continuam...")
+
+        # Always dump page state for debugging — uploaded as GHA artifact
+        await self._dump_page("schedule_raw")
 
         await self._select_lujerului()
 
@@ -672,5 +681,16 @@ class WorldclassClient:
         try:
             await self.page.screenshot(path=filename, full_page=True)
             logger.debug(f"Screenshot: {filename}")
+        except Exception:
+            pass
+
+    async def _dump_page(self, label: str):
+        """Save screenshot + HTML for debugging (uploaded as GHA artifact)."""
+        try:
+            await self.page.screenshot(path=f"debug_{label}.png", full_page=True)
+            html = await self.page.content()
+            with open(f"debug_{label}.html", "w", encoding="utf-8") as f:
+                f.write(html)
+            logger.debug(f"Debug dump salvat: debug_{label}.png / .html")
         except Exception:
             pass
